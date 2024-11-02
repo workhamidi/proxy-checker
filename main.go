@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"regexp"
 
 	"github.com/corpix/uarand"
 	"github.com/schollz/progressbar/v3"
@@ -438,24 +439,29 @@ func main() {
 	sem := make(chan struct{}, *concurrentCount)
 	var wg sync.WaitGroup
 
+	pattern := `^(socks5://|socks4://|http://|https://)`
+
+	re := regexp.MustCompile(pattern)
+
 	if *socks5 {
 		socks5URLs := []string{
+			"https://raw.githubusercontent.com/yemixzy/proxy-list/main/proxies/socks5.txt",
+			"https://raw.githubusercontent.com/ErcinDedeoglu/proxies/refs/heads/main/proxies/socks5.txt",
+			"https://raw.githubusercontent.com/vakhov/fresh-proxy-list/refs/heads/master/socks5.txt",
 			"https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
 			"https://api.openproxylist.xyz/socks5.txt",
-			"https://raw.githubusercontent.com/B4RC0DE-TM/proxy-list/main/SOCKS5.txt",
 			"https://raw.githubusercontent.com/mmpx12/proxy-list/master/socks5.txt",
 			"https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt",
 			"https://raw.githubusercontent.com/monosans/proxy-list/main/proxies_anonymous/socks5.txt",
-			"https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/socks5.txt",
-			"https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-socks5.txt",
 			"https://raw.githubusercontent.com/roosterkid/openproxylist/main/SOCKS5_RAW.txt",
-			"https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt",
 			"https://proxyspace.pro/socks5.txt",
 			"https://api.proxyscrape.com/?request=displayproxies&proxytype=socks5",
 			"https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5",
 			"https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks5&timeout=10000&country=all&simplified=true",
-			"http://worm.rip/socks5.txt",
 			"https://www.proxy-list.download/api/v1/get?type=socks5",
+			"https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks5/socks5.txt",
+			"https://alexa.lr2b.com/proxylist.txt",
+			"https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt",
 		}
 
 		initProxiesSlice(socks5URLs, &Socks5)
@@ -471,18 +477,27 @@ func main() {
 		for index, socks5Url := range Socks5 {
 			wg.Add(1)
 			order := fmt.Sprintf("%d/%d", index, len(Socks5))
-			go checkProxy("socks5", "://"+socks5Url, &Socks5Valid, sem, &wg, bar, rand.Intn(2), order)
-		}		
+			go checkProxy("socks5", "://"+re.ReplaceAllString(socks5Url, ""), &Socks5Valid, sem, &wg, bar, rand.Intn(2), order)
+		}
 	}
 
 	if *socks4 {
 		socks4URLs := []string{
+			"https://raw.githubusercontent.com/vakhov/fresh-proxy-list/refs/heads/master/socks4.txt",
+			"https://raw.githubusercontent.com/yemixzy/proxy-list/main/proxies/socks4.txt",
+			"https://raw.githubusercontent.com/ErcinDedeoglu/proxies/refs/heads/main/proxies/socks4.txt",
+			"https://api.proxyscrape.com/?request=displayproxies&proxytype=socks4",
+			"https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks4",
+			"https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=10000&country=all&simplified=true",
 			"https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt",
+			"https://proxyspace.pro/socks4.txt",
 			"https://api.openproxylist.xyz/socks4.txt",
 			"https://www.proxy-list.download/api/v1/get?type=socks4",
 			"https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks4/socks4.txt",
 			"https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks4.txt",
 			"https://raw.githubusercontent.com/rdavydov/proxy-list/main/proxies_anonymous/socks4.txt",
+			"https://alexa.lr2b.com/proxylist.txt",
+			"https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks4/data.txt",
 		}
 
 		initProxiesSlice(socks4URLs, &Socks4)
@@ -498,22 +513,29 @@ func main() {
 		for index, socks4Url := range Socks4 {
 			wg.Add(1)
 			order := fmt.Sprintf("%d/%d", index, len(Socks4))
-			go checkProxy("socks4", "://"+socks4Url, &Socks4Valid, sem, &wg, bar, rand.Intn(2), order)
+			go checkProxy("socks4", "://"+re.ReplaceAllString(socks4Url, ""), &Socks4Valid, sem, &wg, bar, rand.Intn(2), order)
 		}
 	}
 
 	if *httpAndS {
 		httpURLs := []string{
+			"https://raw.githubusercontent.com/vakhov/fresh-proxy-list/refs/heads/master/https.txt",
+			"https://raw.githubusercontent.com/vakhov/fresh-proxy-list/refs/heads/master/http.txt",
+			"https://raw.githubusercontent.com/ErcinDedeoglu/proxies/refs/heads/main/proxies/http.txt",
+			"https://raw.githubusercontent.com/ErcinDedeoglu/proxies/refs/heads/main/proxies/https.txt",
+			"https://raw.githubusercontent.com/yemixzy/proxy-list/main/proxies/http.txt",
+			"https://proxyspace.pro/http.txt",
+			"https://proxyspace.pro/https.txt",
 			"https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt",
 			"https://api.openproxylist.xyz/http.txt",
 			"https://alexa.lr2b.com/proxylist.txt",
-			"https://rootjazz.com/proxies/proxies.txt",
 			"https://www.proxy-list.download/api/v1/get?type=http",
-			"https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/http/http.txt",
 			"https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt",
 			"https://www.proxy-list.download/api/v1/get?type=https",
 			"https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/https/https.txt",
-			"https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-https.txt",
+			"https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/http/http.txt",
+			"https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/http/data.txt",
+			"https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/https/data.txt",
 		}
 
 		initProxiesSlice(httpURLs, &HttpAndS)
@@ -529,7 +551,7 @@ func main() {
 		for index, httpAndS := range HttpAndS {
 			wg.Add(1)
 			order := fmt.Sprintf("%d/%d", index, len(HttpAndS))
-			go checkProxy("http", "://"+httpAndS, &HttpAndS, sem, &wg, bar, rand.Intn(2), order)
+			go checkProxy("http", "://"+re.ReplaceAllString(httpAndS, ""), &HttpAndS, sem, &wg, bar, rand.Intn(2), order)
 		}
 	}
 
@@ -553,7 +575,6 @@ func main() {
 		os.Exit(0)
 	}
 
-
 	if len(HttpAndSValid) != 0 {
 		if err := writeProxiesToFile("http.txt", HttpAndSValid); err != nil {
 			if verbosityLevel > 0 {
@@ -562,6 +583,6 @@ func main() {
 		}
 		os.Exit(0)
 	}
-	
+
 	os.Exit(0)
 }
