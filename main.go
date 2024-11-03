@@ -6,14 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
-	"regexp"
 
 	"github.com/corpix/uarand"
 	"github.com/schollz/progressbar/v3"
@@ -54,12 +53,6 @@ var (
 	proxyCount          = flag.Int("n", 5, "number of proxies")
 	ProxyRequestTimeout = flag.Int("to", 5, "request time out")
 
-	MyIp = [3]string{
-		"https://checkip.amazonaws.com",
-		"https://ident.me",
-		"https://ifconfig.me/ip",
-	}
-
 	log            = logrus.New()
 	verbosityLevel int
 )
@@ -80,7 +73,7 @@ func initLogger(verbosity int) {
 	log.SetFormatter(&logrus.TextFormatter{ForceColors: true})
 }
 
-func checkProxy(protocol string, proxy string, proxySlice *[]string, sem chan struct{}, wg *sync.WaitGroup, bar *progressbar.ProgressBar, myIpIndex int, index string) {
+func checkProxy(protocol string, proxy string, proxySlice *[]string, sem chan struct{}, wg *sync.WaitGroup, bar *progressbar.ProgressBar, index string) {
 	defer wg.Done()
 
 	sem <- struct{}{}
@@ -110,7 +103,7 @@ func checkProxy(protocol string, proxy string, proxySlice *[]string, sem chan st
 		},
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", MyIp[myIpIndex], nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://google.com", nil)
 	if err != nil {
 		if verbosityLevel > 0 {
 			log.Errorf("%s Error creating request: %s", index, err.Error())
@@ -119,9 +112,7 @@ func checkProxy(protocol string, proxy string, proxySlice *[]string, sem chan st
 	}
 
 	req.Header.Add("User-Agent", uarand.GetRandom())
-	if verbosityLevel > 0 {
-		log.Debugf("Sending request to %s", MyIp[myIpIndex])
-	}
+	
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -143,40 +134,26 @@ func checkProxy(protocol string, proxy string, proxySlice *[]string, sem chan st
 		return
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	mu.Lock()
+	if len(*proxySlice) < *proxyCount {
+		*proxySlice = append(*proxySlice, proxy)
 		if verbosityLevel > 0 {
-			log.Errorf("%s Error reading response body: %s", index, err.Error())
+			log.Infof("%s Proxy %s is working!", index, proxy)
 		}
-		return
+		bar.Add(1)
 	}
-
-	if string(body) == proxyUrl.Hostname() {
-		mu.Lock()
-		if len(*proxySlice) < *proxyCount {
-			*proxySlice = append(*proxySlice, proxy)
+	if len(*proxySlice) == *proxyCount {
+		if err := writeProxiesToFile(protocol+".txt", *proxySlice); err != nil {
 			if verbosityLevel > 0 {
-				log.Infof("%s Proxy %s is working!", index, proxy)
+				log.Errorf("Error writing working proxies: %s", err)
 			}
-			bar.Add(1)
 		}
-		if len(*proxySlice) == *proxyCount {
-			if err := writeProxiesToFile(protocol+".txt", *proxySlice); err != nil {
-				if verbosityLevel > 0 {
-					log.Errorf("Error writing working proxies: %s", err)
-				}
-			}
-			if verbosityLevel > 0 {
-				log.Infof("Successfully wrote proxies to file %s.txt", protocol)
-			}
-			os.Exit(0)
-		}
-		mu.Unlock()
-	} else {
 		if verbosityLevel > 0 {
-			log.Errorf("%s Proxy %s is not working: Response does not match", index, proxy)
+			log.Infof("Successfully wrote proxies to file %s.txt", protocol)
 		}
+		os.Exit(0)
 	}
+	mu.Unlock()
 }
 
 func getProxies(url string) []byte {
@@ -419,7 +396,7 @@ func main() {
 	socks4 := flag.Bool("s4", false, "use Socks4 proxy type")
 	httpAndS := flag.Bool("hs", false, "use HTTP/S proxy type")
 	concurrentCount := flag.Int("c", 5, "concurrency count")
-	verbosity := flag.Int("v", 1, "verbosity level (1-4)")
+	verbosity := flag.Int("v", 0, "verbosity level (1-4)")
 
 	flag.Parse()
 
@@ -477,7 +454,7 @@ func main() {
 		for index, socks5Url := range Socks5 {
 			wg.Add(1)
 			order := fmt.Sprintf("%d/%d", index, len(Socks5))
-			go checkProxy("socks5", "://"+re.ReplaceAllString(socks5Url, ""), &Socks5Valid, sem, &wg, bar, rand.Intn(2), order)
+			go checkProxy("socks5", "://"+re.ReplaceAllString(socks5Url, ""), &Socks5Valid, sem, &wg, bar, order)
 		}
 	}
 
@@ -513,7 +490,7 @@ func main() {
 		for index, socks4Url := range Socks4 {
 			wg.Add(1)
 			order := fmt.Sprintf("%d/%d", index, len(Socks4))
-			go checkProxy("socks4", "://"+re.ReplaceAllString(socks4Url, ""), &Socks4Valid, sem, &wg, bar, rand.Intn(2), order)
+			go checkProxy("socks4", "://"+re.ReplaceAllString(socks4Url, ""), &Socks4Valid, sem, &wg, bar, order)
 		}
 	}
 
@@ -548,10 +525,10 @@ func main() {
 
 		HttpAndS = removeDuplicates(HttpAndS)
 
-		for index, httpAndS := range HttpAndS {
+		for index, httpAndS := range HttpAndS{
 			wg.Add(1)
 			order := fmt.Sprintf("%d/%d", index, len(HttpAndS))
-			go checkProxy("http", "://"+re.ReplaceAllString(httpAndS, ""), &HttpAndS, sem, &wg, bar, rand.Intn(2), order)
+			go checkProxy("http", "://"+re.ReplaceAllString(httpAndS, ""), &HttpAndS, sem, &wg, bar, order)
 		}
 	}
 
